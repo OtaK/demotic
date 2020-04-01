@@ -1,17 +1,9 @@
-use failure::Fail;
+use thiserror::Error;
 
-macro_rules! from_error {
-    ($type:ty, $target:ident, $targetvar:expr) => {
-        impl From<$type> for $target {
-            fn from(s: $type) -> Self {
-                $targetvar(s.into())
-            }
-        }
-    };
-}
-
-#[derive(Debug, Fail)]
-pub enum DbusParseError {
-    #[fail(display = "Unknown error")]
+#[derive(Debug, Error)]
+pub enum DemoParseError {
+    #[error(transparent)]
+    OtherError(#[from] anyhow::Error),
+    #[error("Unknown error")]
     UnknownError,
 }
