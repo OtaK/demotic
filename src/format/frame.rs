@@ -1,9 +1,9 @@
-use crate::format::packet::Packet;
+use crate::format::packet::RawPacket;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Frame {
     server_frame: u16,
     client_frame: u16,
     subpacket: Vec<u8>,
-    packet: Packet
+    packet: RawPacket
 }

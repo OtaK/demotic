@@ -1,5 +1,3 @@
-
-
 mod header;
 mod packet;
 mod frame;
@@ -10,7 +8,8 @@ pub(crate) fn take_source_str(i: &[u8]) -> nom::IResult<&[u8], String> {
     Ok((i, ret))
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Demo {
-
+    header: header::DemoHeader,
+    frames: Vec<frame::Frame>
 }

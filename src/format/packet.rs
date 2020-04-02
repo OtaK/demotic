@@ -54,10 +54,10 @@ pub enum CommandType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Packet {
-    command_type: CommandType,
-    tick_count: u8,
-    packet_size: u8,
+pub struct RawPacket {
+    command_type: u8,
+    tick_count: u16,
+    packet_size: u16,
     data: Vec<u8>
 }
 
