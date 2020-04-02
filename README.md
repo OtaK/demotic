@@ -1,1 +1,5 @@
 # demotic
+
+## TODO
+
+- [ ] Use mmap?

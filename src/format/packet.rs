@@ -1,16 +1,12 @@
-use nom::{
-    do_parse,
-    tag,
-    named,
-    map,
-    map_res,
-    take_till,
-    number::streaming::{le_u32, le_f32}
-};
+#![allow(dead_code)]
+
+use crate::Buffer;
+use crate::format::parsers::le_i32_as_u16;
+use nom::{combinator::map, bytes::streaming::take};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]
-pub enum CommandTypeNP78 {
+pub enum CommandTypeLegacy {
     SignOn = 1,
     Packet = 2,
     SyncTick = 3,
@@ -22,7 +18,7 @@ pub enum CommandTypeNP78 {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]
-pub enum CommandTypeNP1415 {
+pub enum CommandTypeOrange {
     SignOn = 1,
     Packet = 2,
     SyncTick = 3,
@@ -35,7 +31,7 @@ pub enum CommandTypeNP1415 {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]
-pub enum CommandTypeNP36 {
+pub enum CommandTypeModern {
     SignOn = 1,
     Packet = 2,
     SyncTick = 3,
@@ -46,42 +42,81 @@ pub enum CommandTypeNP36 {
     CustomData = 8,
     StringTables = 9,
 }
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum CommandTypeActionType {
+    Stop,
+    ReadPacket,
+    Ignore
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum CommandType {
-    Protocol7(CommandTypeNP78),
-    Protocol14(CommandTypeNP1415),
-    Protocol36(CommandTypeNP36),
+    Legacy(CommandTypeLegacy),
+    Orange(CommandTypeOrange),
+    Modern(CommandTypeModern),
+}
+
+impl CommandType {
+    pub fn get_action_type(&self) -> CommandTypeActionType {
+        match *self {
+            Self::Legacy(s) => match s {
+                CommandTypeLegacy::Stop => CommandTypeActionType::Stop,
+                CommandTypeLegacy::SyncTick | CommandTypeLegacy::SignOn | CommandTypeLegacy::Packet => CommandTypeActionType::Ignore,
+                _ => CommandTypeActionType::ReadPacket
+            },
+            Self::Orange(s) => match s {
+                CommandTypeOrange::Stop => CommandTypeActionType::Stop,
+                CommandTypeOrange::SyncTick | CommandTypeOrange::SignOn | CommandTypeOrange::Packet => CommandTypeActionType::Ignore,
+                _ => CommandTypeActionType::ReadPacket
+            },
+            Self::Modern(s) => match s {
+                CommandTypeModern::Stop => CommandTypeActionType::Stop,
+                CommandTypeModern::SyncTick | CommandTypeModern::SignOn | CommandTypeModern::Packet => CommandTypeActionType::Ignore,
+                _ => CommandTypeActionType::ReadPacket
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct RawPacket {
-    command_type: u8,
-    tick_count: u16,
-    packet_size: u16,
+pub struct Packet {
+    //command_type: CommandType,
+    //action_type: CommandTypeActionType,
+    //tick_count: u16,
     data: Vec<u8>
 }
 
-/*impl crate::Parsable for Packet {
-    fn parse(i: &[u8]) -> nom::IResult<&[u8], Self> {
-        do_parse!(i,
-            command_type: le_u32           >>
-            network_protocol: le_u32        >>
-            server_name: map!(map_res!(till_eol, std::str::from_utf8), String::from)    >>
-            client_name: map!(map_res!(till_eol, std::str::from_utf8), String::from)    >>
-            map_name: map!(map_res!(till_eol, std::str::from_utf8), String::from)       >>
-            directory: map!(map_res!(till_eol, std::str::from_utf8), String::from)      >>
-            playback_time: le_f32           >>
-            ticks: le_u32                   >>
-            frames: le_u32                  >>
-            signon_len: le_u32              >>
-            (DemoHeader {
-                demo_protocol, network_protocol,
-                server_name, client_name,
-                map_name, directory,
-                playback_time,
-                ticks, frames,
-                signon_len
-            })
-        )
+impl crate::Parsable for Packet {
+    fn parse(i: Buffer) -> nom::IResult<Buffer, Self> {
+        let (i, len) = le_i32_as_u16(i)?;
+        let (i, data) = map(take(len), Into::into)(i)?;
+        Ok((i, Packet { data }))
     }
-}*/
+    //action_type: command_type.get_action_type(),
+                //command_type,
+                //tick_count,
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn can_parse_packet() {
+        use crate::format::{header::DemoHeader, frame::Frame};
+        use super::Packet;
+        use crate::Parsable as _;
+        use crate::{TEST_FILE_PATH, DemoReader};
+
+
+        println!("Parsing: natus-vincere-vs-vitality-m2-dust2.dem");
+        let reader = DemoReader::new(TEST_FILE_PATH).unwrap();
+        let (reader, header) = DemoHeader::parse(&reader).unwrap();
+        println!("Header {:#?}", header);
+
+        let (reader, frame) = Frame::parse(&reader).unwrap();
+        println!("Frame: {:#?}", frame);
+
+        let (_reader, packet) = Packet::parse(&reader).unwrap();
+        println!("Packet: {:#?}", packet);
+    }
+}
