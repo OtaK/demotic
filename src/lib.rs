@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate log;
+
 mod format;
 mod error;
 
@@ -17,7 +20,10 @@ pub struct DemoReader {
 
 impl DemoReader {
     pub fn new<P: AsRef<std::path::Path>>(path: P) -> Result<Self, crate::error::DemoticError> {
+        debug!("Opening file {}", path.as_ref().display());
         let file = std::fs::File::open(path)?;
+
+        debug!("Starting to mmap demo file");
         let mmap = unsafe { memmap::Mmap::map(&file)? };
 
         Ok(Self { mmap })
@@ -35,6 +41,7 @@ impl std::ops::Deref for DemoReader {
 mod tests {
     #[test]
     fn can_open_mmaped_file() {
+        let _ = pretty_env_logger::try_init();
         use crate::{TEST_FILE_PATH, DemoReader};
         let _ = DemoReader::new(TEST_FILE_PATH).unwrap();
     }

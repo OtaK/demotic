@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use crate::Buffer;
-use crate::format::parsers::le_i32_as_u16;
 use nom::{combinator::map, bytes::streaming::take};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -89,8 +88,9 @@ pub struct Packet {
 
 impl crate::Parsable for Packet {
     fn parse(i: Buffer) -> nom::IResult<Buffer, Self> {
-        let (i, len) = le_i32_as_u16(i)?;
-        let (i, data) = map(take(len), Into::into)(i)?;
+        let (i, len) = nom::number::streaming::le_i32(i)?;
+        debug!("Packet len: {}", len);
+        let (i, data) = map(take(len as usize), Into::into)(i)?;
         Ok((i, Packet { data }))
     }
     //action_type: command_type.get_action_type(),
@@ -102,11 +102,12 @@ impl crate::Parsable for Packet {
 mod tests {
     #[test]
     fn can_parse_packet() {
+        let _ = pretty_env_logger::try_init();
+
         use crate::format::{header::DemoHeader, frame::Frame};
         use super::Packet;
         use crate::Parsable as _;
         use crate::{TEST_FILE_PATH, DemoReader};
-
 
         println!("Parsing: natus-vincere-vs-vitality-m2-dust2.dem");
         let reader = DemoReader::new(TEST_FILE_PATH).unwrap();
